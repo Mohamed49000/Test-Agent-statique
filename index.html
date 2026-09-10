@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cyber Serpent — Cyber Academy</title>
+  <style>
+    :root { --ink:#eaf5ff; --muted:#90abc3; --panel:#101d31; --line:#27415d; --cyan:#26dfcf; --violet:#916cff; --red:#ff6b7a; --orange:#ffb15c; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; overflow:auto; color:var(--ink); font:16px/1.4 Inter, ui-sans-serif, system-ui, sans-serif; background:#06101f radial-gradient(circle at 15% 0%,#15365a 0,transparent 28%),radial-gradient(circle at 100% 100%,#241747 0,transparent 31%); }
+    .app { width:min(100%,960px); padding:28px 20px; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:20px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .mark { width:42px; height:42px; display:grid; place-items:center; border-radius:12px; color:#051522; font-weight:900; background:var(--cyan); box-shadow:0 0 25px #26dfcf55; }
+    h1 { margin:0; font-size:clamp(1.35rem,4vw,2rem); letter-spacing:-.04em; } .eyebrow { color:var(--cyan); font-size:.72rem; letter-spacing:.14em; font-weight:800; text-transform:uppercase; }
+    .score { text-align:right; color:var(--muted); font-size:.8rem; } .score strong { display:block; color:var(--ink); font-size:1.35rem; }
+    .game-shell { display:grid; grid-template-columns:minmax(0,1fr) 220px; gap:18px; }
+    .board-wrap,.side { background:#0b1729cc; border:1px solid var(--line); border-radius:18px; box-shadow:0 18px 50px #0004; }
+    .board-wrap { position:relative; padding:12px; } canvas { display:block; width:100%; aspect-ratio:1; border-radius:10px; background:#07111e; image-rendering:pixelated; }
+    .side { padding:19px; } .side h2 { margin:0 0 12px; font-size:1rem; } .side p { margin:0 0 18px; color:var(--muted); font-size:.88rem; }
+    .legend { display:grid; gap:10px; font-size:.82rem; color:var(--muted); } .dot { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:8px; } .cyan{background:var(--cyan)} .orange{background:var(--orange)}
+    button { width:100%; border:0; border-radius:10px; padding:12px 14px; color:#06101f; background:var(--cyan); font:inherit; font-weight:800; cursor:pointer; transition:transform .15s,filter .15s; } button:hover { transform:translateY(-2px); filter:brightness(1.08); } button:focus-visible { outline:3px solid white; outline-offset:3px; }
+    .modal { position:fixed; inset:0; z-index:2; display:grid; place-items:center; padding:20px; background:#020814bb; backdrop-filter:blur(7px); }
+    .modal[hidden] { display:none; } .dialog { width:min(100%,620px); padding:28px; border:1px solid #365678; border-radius:20px; background:#101e34; box-shadow:0 25px 70px #0009; }
+    .progress { color:var(--cyan); font-weight:800; font-size:.78rem; letter-spacing:.1em; text-transform:uppercase; } .dialog h2 { margin:8px 0 20px; font-size:clamp(1.25rem,4vw,1.7rem); line-height:1.3; }
+    .choices { display:grid; gap:10px; } .choice { text-align:left; color:var(--ink); background:#172941; border:1px solid #34516e; } .choice:hover { filter:none; background:#203b5b; } .choice.correct { background:#15786f; border-color:var(--cyan); } .choice.wrong { background:#772c45; border-color:var(--red); } .choice:disabled { cursor:default; transform:none; }
+    .feedback { min-height:1.5em; margin:16px 0 0; font-weight:700; } .feedback.ok { color:var(--cyan); } .feedback.no { color:#ff9ba7; }
+    .continue { margin-top:16px; background:var(--violet); color:white; } .intro { text-align:center; } .intro h2 { font-size:2rem; } .intro p { color:var(--muted); } .intro .hint { margin:20px 0; font-size:.85rem; }
+    .result-score { margin:15px 0; font-size:3.5rem; font-weight:900; color:var(--cyan); } .validated { color:var(--cyan)!important; font-weight:800; }
+    @media (max-width:700px) { .game-shell { grid-template-columns:1fr; } .side { display:flex; align-items:center; justify-content:space-between; gap:12px; } .side p,.side h2 { display:none; } .side button { width:auto; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header><div class="brand"><div class="mark">&gt;_</div><div><div class="eyebrow">Cyber Academy</div><h1>Cyber Serpent</h1></div></div><div class="score">Questions réussies<strong id="score">0 / 10</strong></div></header>
+    <section class="game-shell"><div class="board-wrap"><canvas id="board" width="600" height="600" aria-label="Plateau de jeu du serpent"></canvas></div><aside class="side"><h2>Mission</h2><p>Mangez les briques et répondez correctement aux défis pour valider vos compétences.</p><div class="legend"><span><i class="dot cyan"></i>Serpent</span><span><i class="dot orange"></i>Brique à manger</span></div><br><button id="restart" type="button">Recommencer</button></aside></section>
+  </main>
+  <div class="modal" id="modal"><section class="dialog intro" id="intro"><div class="eyebrow">Défi de certification</div><h2>Prêt·e à tester vos réflexes cyber ?</h2><p>Chaque brique déclenche une question. Répondez à 10 questions tirées au sort parmi les thèmes IAM, GRC, SOC et sécurité de l’IA.</p><p class="hint">Utilisez les flèches du clavier ou ZQSD. Sur mobile, glissez sur le plateau.</p><button id="start" type="button">Démarrer la mission</button></section><section class="dialog" id="quiz" hidden><div class="progress" id="progress"></div><h2 id="question"></h2><div class="choices" id="choices"></div><p class="feedback" id="feedback"></p><button class="continue" id="continue" type="button" hidden>Continuer la mission</button></section><section class="dialog intro" id="result" hidden><div class="eyebrow">Mission terminée</div><h2 id="result-title">Résultat</h2><div class="result-score" id="result-score"></div><p id="result-text"></p><button id="again" type="button">Rejouer</button></section></div>
+  <script>
+    const bank = [
+      ['IAM','Quel est le principe du moindre privilège ?', 'Donner les droits administrateur à tous.', 'Donner les droits utiles au service entier.', 'N’accorder que les droits strictement nécessaires.',2],
+      ['IAM','À quoi sert l’authentification multifacteur (MFA) ?', 'À mémoriser plusieurs mots de passe.', 'À remplacer tous les identifiants.', 'À exiger au moins deux preuves d’identité.',2],
+      ['IAM','Quelle pratique est la plus sûre pour les comptes à privilèges ?', 'Partager un compte admin entre collègues.', 'Utiliser un compte admin pour les e-mails.', 'Utiliser des comptes nominatifs séparés et journalisés.',2],
+      ['IAM','Qu’est-ce qu’une revue d’habilitations ?', 'Une suppression de tous les utilisateurs.', 'Une vérification occasionnelle des mots de passe.', 'Une vérification régulière que les accès restent justifiés.',2],
+      ['IAM','Quel risque limite le SSO correctement configuré ?', 'Le besoin de sauvegardes.', 'Le nombre de réseaux de l’entreprise.', 'La multiplication des mots de passe et identifiants.',2],
+      ['IAM','Lors du départ d’un salarié, quelle action est prioritaire ?', 'Conserver son accès pour ses anciens collègues.', 'Changer uniquement son nom dans l’annuaire.', 'Révoquer rapidement ses accès et sessions actives.',2],
+      ['IAM','Quel élément ne doit jamais être partagé ?', 'Son identifiant de messagerie.', 'Son rôle professionnel.', 'Son mot de passe ou son jeton MFA.',2],
+      ['IAM','Pourquoi utiliser une gestion centralisée des identités ?', 'Pour supprimer toute authentification.', 'Pour éviter de documenter les rôles.', 'Pour appliquer cohérence, traçabilité et révocation.',2],
+      ['GRC','Que signifie GRC ?', 'Gestion Rapide des Câbles.', 'Gouvernance des Risques et du Cloud.', 'Gouvernance, Risques et Conformité.',2],
+      ['GRC','Quel est le but principal d’une analyse de risques ?', 'Garantir qu’aucun incident n’arrivera.', 'Lister uniquement les risques techniques.', 'Évaluer vraisemblance, impact et traitement des risques.',2],
+      ['GRC','Qu’est-ce qu’un risque résiduel ?', 'Un risque déjà oublié.', 'Le risque avant toute mesure de sécurité.', 'Le risque restant après les mesures de traitement.',2],
+      ['GRC','Quelle est une bonne preuve de conformité ?', 'Une promesse orale de la direction.', 'Un ancien document sans date.', 'Des contrôles documentés et des preuves de leur exécution.',2],
+      ['GRC','Comment traiter un risque inacceptable ?', 'L’ignorer jusqu’au prochain audit.', 'Le transférer toujours sans l’évaluer.', 'Le réduire, le transférer, l’éviter ou l’accepter formellement.',2],
+      ['GRC','Pourquoi tenir un registre des risques ?', 'Pour remplacer les procédures de sécurité.', 'Pour classer les employés par niveau.', 'Pour suivre propriétaires, actions et évolution des risques.',2],
+      ['GRC','Un contrôle de sécurité est efficace s’il…', 'Est très coûteux.', 'Est écrit dans une présentation.', 'Réduit réellement un risque et peut être vérifié.',2],
+      ['GRC','Qui doit porter un risque métier ?', 'Uniquement l’équipe informatique.', 'Le stagiaire le plus récent.', 'Un propriétaire de risque identifié côté métier.',2],
+      ['SOC','Quel est le rôle central d’un SOC ?', 'Créer les campagnes marketing.', 'Vendre des pare-feux.', 'Surveiller, détecter et répondre aux incidents de sécurité.',2],
+      ['SOC','Qu’est-ce qu’un faux positif dans une alerte ?', 'Une attaque confirmée très grave.', 'Une alerte qui n’a pas encore été lue.', 'Une alerte signalant à tort une activité malveillante.',2],
+      ['SOC','Quelle première étape suit généralement une alerte ?', 'Supprimer immédiatement tous les serveurs.', 'La publier sur les réseaux sociaux.', 'La qualifier et recueillir le contexte pertinent.',2],
+      ['SOC','Pourquoi centraliser les journaux dans un SIEM ?', 'Pour les rendre illisibles.', 'Pour réduire le nombre d’utilisateurs.', 'Pour corréler les événements et détecter des comportements suspects.',2],
+      ['SOC','Que vise le confinement d’un incident ?', 'Effacer les traces de l’attaque.', 'Attendre que l’attaquant parte.', 'Limiter la propagation et l’impact de l’incident.',2],
+      ['SOC','Quel indicateur aide à mesurer la rapidité de détection ?', 'Le nombre de cafés bus.', 'La taille de l’équipe commerciale.', 'Le MTTD, temps moyen de détection.',2],
+      ['SOC','Pourquoi préserver les preuves lors d’un incident ?', 'Pour ralentir la réponse.', 'Pour les rendre publiques immédiatement.', 'Pour comprendre l’incident et permettre une investigation fiable.',2],
+      ['AI','Quel est un risque de sécurité lié aux prompts ?', 'La batterie de l’ordinateur se recharge.', 'Le modèle imprime toujours plus vite.', 'L’injection de prompt visant à contourner les instructions.',2],
+      ['AI','Avant d’envoyer une donnée à une IA externe, il faut…', 'Envoyer tous les secrets pour plus de contexte.', 'Traduire systématiquement la donnée.', 'Vérifier sa sensibilité et les règles de traitement autorisées.',2],
+      ['AI','Qu’est-ce qu’une hallucination d’IA ?', 'Un antivirus qui bloque un fichier.', 'Un modèle qui s’arrête automatiquement.', 'Une réponse plausible mais inventée ou inexacte.',2],
+      ['AI','Comment réduire le risque d’empoisonnement des données ?', 'Accepter toute donnée sans contrôle.', 'Former le modèle uniquement la nuit.', 'Valider provenance, qualité et intégrité des données.',2],
+      ['AI','Pourquoi appliquer le moindre privilège à une IA connectée ?', 'Pour empêcher toute réponse.', 'Pour donner accès à tous les outils.', 'Pour limiter les actions possibles en cas d’erreur ou d’abus.',2],
+      ['AI','Quelle mesure aide à sécuriser les sorties d’une IA ?', 'Faire confiance à chaque réponse automatiquement.', 'Masquer l’écran de l’utilisateur.', 'Valider et filtrer les sorties avant les actions sensibles.',2],
+      ['AI','Quel est le bon réflexe face à une réponse IA critique ?', 'La traiter comme une vérité absolue.', 'La copier sans la lire.', 'La vérifier avec des sources et une expertise adaptées.',2]
+    ];
+    const canvas=document.querySelector('#board'), ctx=canvas.getContext('2d'), cells=20, size=canvas.width/cells;
+    const modal=document.querySelector('#modal'), intro=document.querySelector('#intro'), quiz=document.querySelector('#quiz'), result=document.querySelector('#result');
+    let snake, food, direction, queued, timer, active, questions, index, correct, touchStart;
+    const shuffle=a=>[...a].sort(()=>Math.random()-.5);
+    function reset(){ clearInterval(timer); snake=[{x:10,y:10},{x:9,y:10},{x:8,y:10}]; direction={x:1,y:0}; queued=direction; food=placeFood(); active=false; questions=shuffle(bank).slice(0,10); index=correct=0; document.querySelector('#score').textContent='0 / 10'; draw(); }
+    function placeFood(){ let p; do p={x:Math.floor(Math.random()*cells),y:Math.floor(Math.random()*cells)}; while(snake.some(s=>s.x===p.x&&s.y===p.y)); return p; }
+    function draw(){ ctx.clearRect(0,0,600,600); ctx.strokeStyle='#0d2134'; ctx.lineWidth=1; for(let i=0;i<=cells;i++){ctx.beginPath();ctx.moveTo(i*size,0);ctx.lineTo(i*size,600);ctx.moveTo(0,i*size);ctx.lineTo(600,i*size);ctx.stroke();} ctx.fillStyle='#ffb15c'; ctx.shadowColor='#ffb15c';ctx.shadowBlur=14;ctx.fillRect(food.x*size+5,food.y*size+5,size-10,size-10);ctx.shadowBlur=0; snake.forEach((s,i)=>{ctx.fillStyle=i?'#26dfcf':'#b9fff8';ctx.fillRect(s.x*size+3,s.y*size+3,size-6,size-6);}); }
+    function tick(){ direction=queued; const head={x:snake[0].x+direction.x,y:snake[0].y+direction.y}; if(head.x<0||head.x>=cells||head.y<0||head.y>=cells||snake.some(s=>s.x===head.x&&s.y===head.y)){ endGame('Collision !', 'Votre score de connaissances est affiché ci-dessous.'); return; } snake.unshift(head); if(head.x===food.x&&head.y===food.y){ snake.pop(); ask(); }else snake.pop(); draw(); }
+    function play(){ active=true; timer=setInterval(tick,115); }
+    function ask(){ active=false;clearInterval(timer); const q=questions[index]; modal.hidden=false;intro.hidden=true;result.hidden=true;quiz.hidden=false;document.querySelector('#progress').textContent=`${q[0]} · Question ${index+1} sur 10`;document.querySelector('#question').textContent=q[1];const choices=document.querySelector('#choices');choices.innerHTML='';document.querySelector('#feedback').textContent='';document.querySelector('#continue').hidden=true; shuffle([0,1,2]).forEach(i=>{const b=document.createElement('button');b.className='choice';b.textContent=q[i+2];b.onclick=()=>answer(i,b);choices.append(b);}); }
+    function answer(answer,button){ const q=questions[index], buttons=[...document.querySelectorAll('.choice')], ok=answer===q[4]; buttons.forEach((b,i)=>{b.disabled=true; if(b.textContent===q[q[4]+2])b.classList.add('correct');});if(!ok)button.classList.add('wrong');const feedback=document.querySelector('#feedback');feedback.textContent=ok?'Bonne réponse ! Votre savoir-faire progresse.':'Pas tout à fait. La réponse en vert était la bonne.';feedback.className='feedback '+(ok?'ok':'no');if(ok)correct++;document.querySelector('#score').textContent=`${correct} / 10`;document.querySelector('#continue').hidden=false; }
+    function next(){ index++; if(index===10){endGame('Mission terminée',correct>8?'Compétences validées':'Continuez votre entraînement pour valider vos compétences.');return;} food=placeFood();modal.hidden=true;play(); }
+    function endGame(title,text){clearInterval(timer);active=false;modal.hidden=false;intro.hidden=true;quiz.hidden=true;result.hidden=false;document.querySelector('#result-title').textContent=title;document.querySelector('#result-score').textContent=`${correct} / 10`;const out=document.querySelector('#result-text');out.textContent=text;out.className=correct>8?'validated':'';}
+    function start(){reset();modal.hidden=true;play();} document.querySelector('#start').onclick=start;document.querySelector('#again').onclick=()=>{reset();intro.hidden=false;quiz.hidden=true;result.hidden=true;modal.hidden=false;};document.querySelector('#restart').onclick=()=>{reset();intro.hidden=false;quiz.hidden=true;result.hidden=true;modal.hidden=false;};document.querySelector('#continue').onclick=next;
+    document.addEventListener('keydown',e=>{const map={ArrowUp:[0,-1],z:[0,-1],Z:[0,-1],ArrowDown:[0,1],s:[0,1],S:[0,1],ArrowLeft:[-1,0],q:[-1,0],Q:[-1,0],ArrowRight:[1,0],d:[1,0],D:[1,0]};if(map[e.key]&&active){e.preventDefault();const [x,y]=map[e.key];if(x!==-direction.x||y!==-direction.y)queued={x,y};}});
+    canvas.addEventListener('touchstart',e=>touchStart=e.changedTouches[0],{passive:true});canvas.addEventListener('touchend',e=>{if(!touchStart||!active)return;const t=e.changedTouches[0],dx=t.clientX-touchStart.clientX,dy=t.clientY-touchStart.clientY;if(Math.max(Math.abs(dx),Math.abs(dy))<20)return;const n=Math.abs(dx)>Math.abs(dy)?{x:Math.sign(dx),y:0}:{x:0,y:Math.sign(dy)};if(n.x!==-direction.x||n.y!==-direction.y)queued=n;},{passive:true}); reset();
+  </script>
+</body>
+</html>
